@@ -16,7 +16,7 @@ const app = express();
 // CORS configuration
 app.use(
   cors({
-    origin: "http://localhost:5173", // React frontend URL https://radhelaptops.com
+    origin: "https://radhelaptops.com", // React frontend URL https://radhelaptops.com
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: "Content-Type,Authorization" ,// Add Authorization header
     credentials: true, // Allow cookies with requests
@@ -55,5 +55,6 @@ app.use((err, _req, res, next) => {
     });
   }
 });
+
 
 export default app;
