@@ -63,7 +63,7 @@ app.get("/", (req, res) => {
    API Routes
 ====================================================== */
 
-app.use("/api/v1", routes);
+app.use("/", routes);
 
 /* ======================================================
    404 Handler (Must Be After Routes)
