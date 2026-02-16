@@ -1,6 +1,18 @@
 import { Admin } from "../../models/admin/admin.model.js";
 import { AsyncHandler } from "../../utils/AyncHandler.js";
 import { AlreadyExist, NotFoundError } from "../../utils/custumError.js";
+import jwt from "jsonwebtoken";
+
+/* =====================================================
+   DEMO ADMIN (For Testing Only)
+===================================================== */
+
+const DEMO_ADMIN = {
+  email: "demo@admin.com",
+  password: "admin123",
+  name: "Demo Admin",
+  role: "admin",
+};
 
 /* =====================================================
    ADMIN REGISTER
@@ -9,14 +21,12 @@ import { AlreadyExist, NotFoundError } from "../../utils/custumError.js";
 const adminRegister = AsyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
-  // Check if admin already exists
   const existingAdmin = await Admin.findOne({ email });
 
   if (existingAdmin) {
     throw new AlreadyExist("Admin already exists", "adminRegister method");
   }
 
-  // Create new admin (password auto-hashed by pre('save'))
   const newAdmin = await Admin.create({
     name,
     email,
@@ -37,58 +47,78 @@ const adminRegister = AsyncHandler(async (req, res) => {
 });
 
 /* =====================================================
-   ADMIN LOGIN
+   ADMIN LOGIN (WITH DEMO SUPPORT)
 ===================================================== */
 
 const adminLogin = AsyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Check if admin exists
+  /* ---------- 1️⃣ CHECK DATABASE ---------- */
+
   const admin = await Admin.findOne({ email });
 
-  if (!admin) {
-    throw new NotFoundError(
-      "Invalid email or password",
-      "adminLogin method"
-    );
-  }
+  if (admin) {
+    const isPasswordValid = await admin.comparePassword(password);
 
-  // Compare password
-  const isPasswordValid = await admin.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        status: "error",
+        message: "Invalid email or password",
+      });
+    }
 
-  if (!isPasswordValid) {
-    return res.status(401).json({
-      status: "error",
-      message: "Invalid email or password",
+    const token = admin.generateToken();
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      maxAge: 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Login successful",
+      token,
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+      },
     });
   }
 
-  // Generate JWT token
-  const token = admin.generateToken();
+  /* ---------- 2️⃣ CHECK DEMO LOGIN ---------- */
 
-  // Set token in HTTP-only cookie
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // true in production
-    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-    maxAge: 60 * 60 * 1000, // 1 hour
-  });
+  if (
+    email === DEMO_ADMIN.email &&
+    password === DEMO_ADMIN.password
+  ) {
+    const token = jwt.sign(
+      { email: DEMO_ADMIN.email, role: DEMO_ADMIN.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-  res.status(200).json({
-    status: "success",
-    message: "Login successful",
-    token,
-    admin: {
-      id: admin._id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role,
-    },
-  });
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      maxAge: 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Demo login successful",
+      token,
+      admin: DEMO_ADMIN,
+    });
+  }
+
+  /* ---------- 3️⃣ IF NOTHING MATCHES ---------- */
+
+  throw new NotFoundError("Invalid email or password", "adminLogin method");
 });
-
-/* =====================================================
-   EXPORTS
-===================================================== */
 
 export { adminRegister, adminLogin };
