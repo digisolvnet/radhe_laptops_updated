@@ -20,8 +20,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",        // Local frontend
+    origin: [       
       "https://radhelaptops.com",     // Production frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
